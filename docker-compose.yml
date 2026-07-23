@@ -1,0 +1,193 @@
+# ═══════════════════════════════════════════════════════════════════
+#  env-cvTools — central infrastructure
+#
+#  Profiles:
+#    full            → everything (cvTools/back + all microservices + front)
+#    back            → same infra as full, without the front dev server
+#    ms-email        → only what ms-email needs
+#    ms-applications → only what ms-applications needs
+#    test            → ephemeral test database (cvTools/back tests)
+#
+#  Note: the front has no docker service — "back" and "full" share the
+#  same infrastructure; the difference is handled in scripts/lib.sh.
+#
+#  Adding a new microservice:
+#    1. Add its database service below (dedicated host port, profiles:
+#       ["full", "<ms-name>"]) and its volume in the volumes section.
+#    2. Add shared services it needs (rabbitmq, mailpit...) to its profile.
+#    3. Register the project in scripts/lib.sh (PROJECTS array).
+#    4. Optionally add it to docker/pgadmin/servers.json.
+# ═══════════════════════════════════════════════════════════════════
+
+name: env-cvtools
+
+services:
+
+  # ─── cvTools/back main database ──────────────────────────────────
+  api-postgres:
+    image: postgres:18.3-alpine3.23
+    restart: unless-stopped
+    profiles: ["back", "full"]
+    environment:
+      POSTGRES_USER: ${API_POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${API_POSTGRES_PASSWORD:?err}
+      POSTGRES_DB: ${API_POSTGRES_DB:-cv_tools}
+    volumes:
+      - api_postgres_data:/var/lib/postgresql
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── ms-email database ───────────────────────────────────────────
+  ms-email-postgres:
+    image: postgres:18.3-alpine3.23
+    restart: unless-stopped
+    profiles: ["back", "full", "ms-email"]
+    environment:
+      POSTGRES_USER: ${MS_EMAIL_POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${MS_EMAIL_POSTGRES_PASSWORD:?err}
+      POSTGRES_DB: ${MS_EMAIL_POSTGRES_DB:-ms_email}
+    volumes:
+      - ms_email_postgres_data:/var/lib/postgresql
+    ports:
+      - '5435:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── ms-applications database ────────────────────────────────────
+  ms-applications-postgres:
+    image: postgres:18.3-alpine3.23
+    restart: unless-stopped
+    profiles: ["back", "full", "ms-applications"]
+    environment:
+      POSTGRES_USER: ${MS_APPLICATIONS_POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${MS_APPLICATIONS_POSTGRES_PASSWORD:?err}
+      POSTGRES_DB: ${MS_APPLICATIONS_POSTGRES_DB:-ms_applications}
+    volumes:
+      - ms_applications_postgres_data:/var/lib/postgresql
+    ports:
+      - '5454:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Ephemeral test database (cvTools/back tests) ────────────────
+  test-postgres:
+    image: postgres:18.3-alpine3.23
+    restart: unless-stopped
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-test}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-test}
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-cv_tools_test}
+    tmpfs:
+      - /var/lib/postgresql
+    ports:
+      - '5434:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Message broker between API & microservices ──────────────────
+  rabbitmq:
+    image: rabbitmq:4.3.0-management-alpine
+    restart: unless-stopped
+    profiles: ["back", "full", "ms-email", "ms-applications"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?err}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?err}
+    ports:
+      - '5672:5672'   # AMQP
+      - '15672:15672' # UI management
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_running']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # ─── Application cache (pure cache, no persistence) ──────────────
+  redis:
+    image: redis:8.6.2-alpine
+    restart: unless-stopped
+    profiles: ["back", "full", "test"]
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+
+  # ─── Local SMTP catcher (dev emails) ─────────────────────────────
+  mailpit:
+    image: axllent/mailpit:v1.29.7
+    restart: unless-stopped
+    profiles: ["back", "full", "ms-email"]
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:8025/api/v1/info']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Database UI (dev tool) ──────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:9.14.0
+    restart: unless-stopped
+    profiles: ["back", "full"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?err}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    ports:
+      - '5050:80'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:80/misc/ping']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      api-postgres:
+        condition: service_healthy
+      ms-email-postgres:
+        condition: service_healthy
+      ms-applications-postgres:
+        condition: service_healthy
+
+volumes:
+  api_postgres_data:
+  ms_email_postgres_data:
+  ms_applications_postgres_data:
+  rabbitmq_data:
+  pgadmin_data:

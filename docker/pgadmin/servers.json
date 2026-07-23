@@ -1,0 +1,31 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "CvTools API",
+      "Group": "Servers",
+      "Port": 5432,
+      "Username": "root",
+      "Host": "api-postgres",
+      "SSLMode": "prefer",
+      "MaintenanceDB": "cv_tools"
+    },
+    "2": {
+      "Name": "MS Email",
+      "Group": "Servers",
+      "Port": 5432,
+      "Username": "root",
+      "Host": "ms-email-postgres",
+      "SSLMode": "prefer",
+      "MaintenanceDB": "ms_email"
+    },
+    "3": {
+      "Name": "MS Applications",
+      "Group": "Servers",
+      "Port": 5432,
+      "Username": "root",
+      "Host": "ms-applications-postgres",
+      "SSLMode": "prefer",
+      "MaintenanceDB": "ms_applications"
+    }
+  }
+}
