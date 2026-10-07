@@ -17,15 +17,6 @@
       "Host": "ms-email-postgres",
       "SSLMode": "prefer",
       "MaintenanceDB": "ms_email"
-    },
-    "3": {
-      "Name": "MS Applications",
-      "Group": "Servers",
-      "Port": 5432,
-      "Username": "root",
-      "Host": "ms-applications-postgres",
-      "SSLMode": "prefer",
-      "MaintenanceDB": "ms_applications"
     }
   }
 }

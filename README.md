@@ -4,7 +4,7 @@ Orchestration workspace for the cvTools ecosystem: it centralizes the docker
 infrastructure (databases, RabbitMQ, Redis, Mailpit, pgAdmin) and the dev
 servers of every project in a single place, driven by three commands.
 
-Each project folder (`cvTools/`, `ms-email/`, `ms-applications/`, ...) has its
+Each project folder (`cvTools/`, `ms-email/`, ...) has its
 own git repository and is ignored by this one — only the orchestration files
 are versioned here.
 
@@ -19,9 +19,9 @@ are versioned here.
 
 | Command | What it does |
 |---|---|
-| `make start` | Starts everything: docker infra (waits until healthy), checks & syncs each project's `.env`, applies Prisma migrations + generates clients, then starts the dev servers. |
-| `make stop` | Stops the dev servers, then the containers. Data volumes are preserved. |
-| `make restart` | `stop` then `start`. |
+| `make start` | Starts everything: docker infra (waits until healthy), checks & syncs each project's `.env`, applies Prisma migrations + generates clients, then starts the dev servers and waits until each one answers HTTP 200 on its health URL (`/health` for the APIs, `/` for the front). |
+| `make stop` | Stops the dev servers then the containers, and verifies the shutdown: each server port must stop answering and no container may remain. Data volumes are preserved. |
+| `make restart` | `stop` then `start`, with both verifications. |
 
 Every step reports success (`✓`) or failure (`✗`) explicitly; on failure the
 command prints the faulty service/project with the last lines of its log.
@@ -32,10 +32,9 @@ Pick what to run with `make start PROFILE=<name>` (default: `full`):
 
 | Profile | Infra | Dev servers |
 |---|---|---|
-| `full` | everything | back + ms-email + ms-applications + front |
-| `back` | everything | back + ms-email + ms-applications |
+| `full` | everything | back + ms-email + front |
+| `back` | everything | back + ms-email |
 | `ms-email` | its postgres, rabbitmq, mailpit | ms-email only |
-| `ms-applications` | its postgres, rabbitmq | ms-applications only |
 | `test` | ephemeral test db + redis | none (used by cvTools/back tests, via `docker compose --profile test up -d`) |
 
 ## Services & ports
@@ -45,10 +44,8 @@ Pick what to run with `make start PROFILE=<name>` (default: `full`):
 | cvTools front | http://localhost:5173 |
 | cvTools back API | http://localhost:3000 |
 | ms-email (health) | http://localhost:3011 |
-| ms-applications | http://localhost:3001 (health: `/health`) |
 | api-postgres (cv_tools) | localhost:5433 |
 | ms-email-postgres | localhost:5435 |
-| ms-applications-postgres | localhost:5454 |
 | test-postgres (ephemeral) | localhost:5434 |
 | RabbitMQ (AMQP / UI) | localhost:5672 / http://localhost:15672 |
 | Redis | localhost:6379 |

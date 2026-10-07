@@ -3,10 +3,9 @@
 # database migrations, then the dev servers.
 #
 # Usage: scripts/start.sh [profile]   (default: full)
-#   full            → infra + back + ms-email + ms-applications + front
+#   full            → infra + back + ms-email + front
 #   back            → same as full, without the front dev server
 #   ms-email        → its infra + ms-email server only
-#   ms-applications → its infra + ms-applications server only
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -47,9 +46,7 @@ echo "    rabbitmq UI      http://localhost:15672"
 if [ "$PROFILE" = "full" ] || [ "$PROFILE" = "back" ]; then
   echo "    pgadmin          http://localhost:5050"
 fi
-if [ "$PROFILE" != "ms-applications" ]; then
-  echo "    mailpit UI       http://localhost:8025"
-fi
+echo "    mailpit UI       http://localhost:8025"
 echo
 echo "  Stop everything:   make stop"
 echo "  Restart:           make restart"
