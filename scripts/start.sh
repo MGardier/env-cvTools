@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start the whole environment: docker infrastructure, .env sync,
-# database migrations, then the dev servers.
+# API contracts build, database migrations, then the dev servers.
 #
 # Usage: scripts/start.sh [profile]   (default: full)
 #   full            → infra + back + ms-email + front
@@ -22,6 +22,10 @@ section "Checking & synchronizing project .env files"
 for project in "${ACTIVE_PROJECTS[@]}"; do
   sync_project_env "$project"
 done
+
+section "API contracts (@cvtools/contracts)"
+mapfile -t CONTRACT_CONSUMERS < <(contract_consumers "${ACTIVE_PROJECTS[@]}")
+prepare_contracts "${CONTRACT_CONSUMERS[@]}"
 
 section "Databases (migrations & client generation)"
 for project in "${ACTIVE_PROJECTS[@]}"; do

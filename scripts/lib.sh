@@ -7,6 +7,7 @@
 #    2. Fill the PROJECT_* maps below (dir, port, db cmd, start cmd).
 #    3. Add its expected env vars in expected_env_for().
 #    4. Add its services/profile in docker-compose.yml.
+#    5. Set PROJECT_USES_CONTRACTS if it depends on @cvtools/contracts.
 # ═══════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -15,6 +16,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOGS_DIR="$ROOT_DIR/logs"
 PIDS_DIR="$ROOT_DIR/.pids"
 SERVER_START_TIMEOUT="${SERVER_START_TIMEOUT:-90}"
+CONTRACTS_DIR="$ROOT_DIR/contracts"
 
 # ───────────────────────── Project registry ─────────────────────────
 
@@ -51,6 +53,13 @@ declare -A PROJECT_HEALTH_PATH=(
   [back]="/health"
   [ms-email]="/health"
   [front]="/"
+)
+
+# Non-empty value → the project depends on @cvtools/contracts (file:../../contracts)
+declare -A PROJECT_USES_CONTRACTS=(
+  [back]=1
+  [ms-email]=""
+  [front]=1
 )
 
 # Projects started for a given docker profile
@@ -235,6 +244,50 @@ sync_project_env() {
   else
     ok "  $ENV_CHANGES value(s) synchronized (backup: .env.bak)"
   fi
+}
+
+# ───────────────────────── API contracts ─────────────────────────
+
+# Projects (among the given ones) that depend on @cvtools/contracts
+contract_consumers() {
+  local name
+  for name in "$@"; do
+    [ -n "${PROJECT_USES_CONTRACTS[$name]}" ] && echo "$name"
+  done
+  return 0
+}
+
+# Builds @cvtools/contracts, then runs `pnpm install` in each consumer:
+# pnpm COPIES a file: dependency, so consumers must reinstall to get the new build.
+prepare_contracts() {
+  local consumers=("$@")
+  local log_file="$LOGS_DIR/contracts.log"
+
+  if [ "${#consumers[@]}" -eq 0 ]; then
+    info "contracts: no consumer in this profile — skipped"
+    return 0
+  fi
+  [ -d "$CONTRACTS_DIR" ] || die "Contracts directory not found: $CONTRACTS_DIR"
+
+  info "contracts: pnpm install && pnpm build"
+  if ! (cd "$CONTRACTS_DIR" && pnpm install && pnpm build) > "$log_file" 2>&1; then
+    echo
+    tail -25 "$log_file" >&2
+    die "contracts: build failed (see output above)." \
+        "Full log: $log_file"
+  fi
+
+  local name
+  for name in "${consumers[@]}"; do
+    info "$name: pnpm install (refresh @cvtools/contracts copy)"
+    if ! (cd "$ROOT_DIR/${PROJECT_DIR[$name]}" && pnpm install) >> "$log_file" 2>&1; then
+      echo
+      tail -25 "$log_file" >&2
+      die "$name: pnpm install failed while refreshing @cvtools/contracts (see output above)." \
+          "Full log: $log_file"
+    fi
+  done
+  ok "contracts: built and synchronized in ${consumers[*]} (log: logs/contracts.log)"
 }
 
 # ───────────────────────── Servers ─────────────────────────
