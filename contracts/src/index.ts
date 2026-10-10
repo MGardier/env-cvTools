@@ -25,3 +25,4 @@ export * from './shared/input.js';
 export * from './schemas/auth.schema.js';
 export * from './schemas/admin.schema.js';
 export * from './schemas/city.schema.js';
+export * from './schemas/oauth.schema.js';

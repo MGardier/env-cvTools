@@ -19,6 +19,7 @@ export const errorCodeSchema = z.enum([
 
   //NOT FOUND
   'DEFAULT_NOT_FOUND_ERROR',
+  'ROUTE_NOT_FOUND',
   'USER_NOT_FOUND_ERROR',
 
   //OAUTH
@@ -34,6 +35,7 @@ export const errorCodeSchema = z.enum([
   'ADMIN_INVITATION_SESSION_LOST',
 
   //AUTH
+  'UNAUTHORIZED',
   'INVALID_CREDENTIALS',
   'ACCOUNT_PENDING',
   'USER_BANNED',

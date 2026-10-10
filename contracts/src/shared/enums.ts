@@ -10,6 +10,12 @@ export const userStatusSchema = z.enum(['ALLOWED', 'PENDING', 'BANNED']);
 export const UserStatus = userStatusSchema.enum;
 export type TUserStatus = z.infer<typeof userStatusSchema>;
 
+/********* OAUTH (OAuth providers of Prisma LoginMethod) *********/
+
+export const oauthLoginMethodSchema = z.enum(['GOOGLE', 'GITHUB']);
+export const OAuthLoginMethod = oauthLoginMethodSchema.enum;
+export type TOAuthLoginMethod = z.infer<typeof oauthLoginMethodSchema>;
+
 /********* JOB (mirrors back-end LLM types) *********/
 
 export const contractTypeSchema = z.enum([

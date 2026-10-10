@@ -286,6 +286,14 @@ prepare_contracts() {
       die "$name: pnpm install failed while refreshing @cvtools/contracts (see output above)." \
           "Full log: $log_file"
     fi
+
+    # Safety net: drop the Vite dependency pre-bundle cache (if any) so the dev server
+    # can never serve a stale copy of the contract. Rebuilt automatically on next start.
+    local vite_cache="$ROOT_DIR/${PROJECT_DIR[$name]}/node_modules/.vite"
+    if [ -d "$vite_cache" ]; then
+      rm -r -- "$vite_cache"
+      info "$name: Vite pre-bundle cache cleared"
+    fi
   done
   ok "contracts: built and synchronized in ${consumers[*]} (log: logs/contracts.log)"
 }

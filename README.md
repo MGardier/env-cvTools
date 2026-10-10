@@ -65,6 +65,11 @@ after a contract change, the consumers must reinstall. `make start` does it
 automatically; while the servers are running, use `make contracts` then
 `make restart`.
 
+The front dev server never serves a stale contract, thanks to two safeguards:
+`@cvtools/contracts` is excluded from Vite's dependency pre-bundling
+(`optimizeDeps.exclude` in `vite.config.ts`), and `make start` / `make contracts`
+also clear the front's Vite cache (`node_modules/.vite`) after each reinstall.
+
 `contracts/openapi.json` documents the contract routes (import it in
 Postman / Insomnia / Swagger UI).
 

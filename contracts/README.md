@@ -26,6 +26,8 @@ src/
 - **Success responses are wrapped** with `envelope(schema)`.
 - **Errors** follow the oRPC format `{ defined, code, status, message, data }`, with `code` in `ErrorCode` and `data` matching `errorDataSchema`.
 - OAuth redirect routes, `/health`, and the `offer` and `scraper` modules are intentionally **outside** the contract.
+  The OAuth **return URL query string** is in the contract (`oauthSuccessQuerySchema`, `oauthErrorQuerySchema`):
+  the back builds it, the front parses it. Its base URL stays environment config.
 
 ## Usage
 
